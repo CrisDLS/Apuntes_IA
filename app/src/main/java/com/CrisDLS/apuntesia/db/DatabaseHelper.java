@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 import android.database.Cursor;
 
+import com.CrisDLS.apuntesia.models.Apunte;
 import com.CrisDLS.apuntesia.models.Materia;
 
 import java.util.ArrayList;
@@ -16,7 +17,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     // Información de la Base de Datos
     private static final String DATABASE_NAME = "ApuntesIA.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 3;
 
     // Tabla: MATERIAS
     private static final String TABLE_MATERIAS = "materias";
@@ -29,6 +30,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COL_APUNTE_ID = "id";
     private static final String COL_APUNTE_MATERIA_ID = "materia_id";
     private static final String COL_APUNTE_FECHA = "fecha";
+    private static final String COL_APUNTE_TITULO = "titulo";
+    private static final String COL_APUNTE_RESUMEN = "resumen";
     private static final String COL_APUNTE_RUTA_AUDIO = "ruta_audio";
     private static final String COL_APUNTE_TEXTO = "texto_resumen";
 
@@ -53,16 +56,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + ")";
         db.execSQL(CREATE_MATERIAS_TABLE);
 
-        // Crear tabla apuntes con relación (FOREIGN KEY) a materias
+        // Crear tabla apuntes vinculada a materias
         String CREATE_APUNTES_TABLE = "CREATE TABLE " + TABLE_APUNTES + " ("
                 + COL_APUNTE_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + COL_APUNTE_MATERIA_ID + " INTEGER, "
-                + COL_APUNTE_FECHA + " TEXT NOT NULL, "
+                + COL_APUNTE_TITULO + " TEXT NOT NULL, "
+                + COL_APUNTE_RESUMEN + " TEXT, "
                 + COL_APUNTE_RUTA_AUDIO + " TEXT NOT NULL, "
-                + COL_APUNTE_TEXTO + " TEXT, "
-                + "FOREIGN KEY(" + COL_APUNTE_MATERIA_ID + ") REFERENCES " + TABLE_MATERIAS + "(" + COL_MATERIA_ID + ") ON DELETE CASCADE"
+                + "FOREIGN KEY(" + COL_APUNTE_MATERIA_ID + ") REFERENCES materias(id) ON DELETE CASCADE"
                 + ")";
         db.execSQL(CREATE_APUNTES_TABLE);
+
     }
 
     @Override
@@ -105,19 +109,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getReadableDatabase();
 
         // 2. Ejecutar la consulta SQL
-        String query = "SELECT * FROM " + TABLE_MATERIAS + " ORDER BY " + COL_MATERIA_ID + " DESC";
+        String query = "SELECT m.*, COUNT(a." + COL_APUNTE_ID + ") as total_apuntes " +
+                "FROM " + TABLE_MATERIAS + " m " +
+                "LEFT JOIN " + TABLE_APUNTES + " a ON m." + COL_MATERIA_ID + " = a." + COL_APUNTE_MATERIA_ID + " " +
+                "GROUP BY m." + COL_MATERIA_ID + " " +
+                "ORDER BY m." + COL_MATERIA_ID + " DESC";
+
         Cursor cursor = db.rawQuery(query, null);
 
-        // 3. Recorrer el cursor si tiene datos
         if (cursor.moveToFirst()) {
             do {
                 Materia materia = new Materia();
-                // Extraer datos usando los índices de las columnas
                 materia.setId(cursor.getLong(cursor.getColumnIndexOrThrow(COL_MATERIA_ID)));
                 materia.setNombre(cursor.getString(cursor.getColumnIndexOrThrow(COL_MATERIA_NOMBRE)));
                 materia.setNotionId(cursor.getString(cursor.getColumnIndexOrThrow(COL_MATERIA_NOTION_ID)));
 
-                // Añadir a la lista
+                // Extraer el conteo (la columna virtual 'total_apuntes')
+                materia.setCantidadApuntes(cursor.getInt(cursor.getColumnIndexOrThrow("total_apuntes")));
+
                 listaMaterias.add(materia);
             } while (cursor.moveToNext());
         }
@@ -127,5 +136,47 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
 
         return listaMaterias;
+    }
+    /**
+     * Inserta un nuevo apunte procesado por la IA.
+     */
+    public long insertarApunte(long materiaId, String titulo, String resumen, String rutaAudio) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+
+        values.put(COL_APUNTE_MATERIA_ID, materiaId);
+        values.put(COL_APUNTE_TITULO, titulo);
+        values.put(COL_APUNTE_RESUMEN, resumen);
+        values.put(COL_APUNTE_RUTA_AUDIO, rutaAudio);
+
+        long id = db.insert(TABLE_APUNTES, null, values);
+        db.close();
+        return id;
+    }
+
+    public List<Apunte> obtenerApuntesPorMateria(long materiaId) {
+        List<Apunte> lista = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        String query = "SELECT * FROM " + TABLE_APUNTES +
+                " WHERE " + COL_APUNTE_MATERIA_ID + " = ? " +
+                " ORDER BY " + COL_APUNTE_ID + " DESC";
+
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(materiaId)});
+
+        if (cursor.moveToFirst()) {
+            do {
+                Apunte apunte = new Apunte();
+                apunte.setId(cursor.getLong(cursor.getColumnIndexOrThrow(COL_APUNTE_ID)));
+                apunte.setMateriaId(cursor.getLong(cursor.getColumnIndexOrThrow(COL_APUNTE_MATERIA_ID)));
+                apunte.setTitulo(cursor.getString(cursor.getColumnIndexOrThrow(COL_APUNTE_TITULO)));
+                apunte.setResumen(cursor.getString(cursor.getColumnIndexOrThrow(COL_APUNTE_RESUMEN)));
+                apunte.setRutaAudio(cursor.getString(cursor.getColumnIndexOrThrow(COL_APUNTE_RUTA_AUDIO)));
+                lista.add(apunte);
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return lista;
     }
 }

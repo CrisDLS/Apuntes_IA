@@ -1,4 +1,4 @@
-package com.CrisDLS.apuntesia;
+package com.CrisDLS.apuntesia.ui;
 
 import android.Manifest;
 import android.content.Intent;
@@ -8,7 +8,6 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
@@ -21,6 +20,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.CrisDLS.apuntesia.utils.AudioRecorder;
+import com.CrisDLS.apuntesia.utils.NetworkHelper;
+import com.CrisDLS.apuntesia.R;
+import com.CrisDLS.apuntesia.adapters.MateriaAdapter;
 import com.CrisDLS.apuntesia.databinding.ActivityMainBinding;
 import com.CrisDLS.apuntesia.databinding.DialogRecordBinding;
 import com.CrisDLS.apuntesia.db.DatabaseHelper;
@@ -207,48 +210,80 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 // --- DETENER GRABACIÓN ---
                 isRecording[0] = false;
-
-                // Cambios Visuales UI
-                dialogBinding.btnRecordToggle.setText("Procesando...");
-                dialogBinding.btnRecordToggle.setEnabled(false);
-                dialogBinding.btnClose.setEnabled(true);
-
-                // 1. Detener Grabación y Cronómetro
                 audioRecorder.stopRecording();
                 detenerCronometro();
 
-                // 2. Extraer el nombre de la materia elegida
+                // 1. Extraer el nombre seleccionado del Spinner
                 String materiaSeleccionada = dialogBinding.spinnerMaterias.getText().toString();
 
-                Toast.makeText(MainActivity.this, "Procesando con IA... Por favor espera", Toast.LENGTH_LONG).show();
+                // 2. Buscar el ID de la materia en nuestra lista
+                long materiaIdSeleccionada = -1;
+                for (Materia m : listaMaterias) {
+                    if (m.getNombre().equals(materiaSeleccionada)) {
+                        materiaIdSeleccionada = m.getId();
+                        break;
+                    }
+                }
 
-                // Cerrar diálogo para que el usuario no se quede bloqueado
+                // 3. Cerrar el Diálogo de Grabación
                 dialog.dismiss();
 
-                // 3. Enviar el audio mediante OkHttp a Python
+                // 4. Mostrar Interfaz Visual de Carga (ViewBinding)
+                binding.cardProcessingStatus.setVisibility(View.VISIBLE);
+                binding.pbProcessing.setVisibility(View.VISIBLE);
+                binding.ivSuccess.setVisibility(View.GONE);
+                binding.tvProcessingText.setText("Procesando con IA...");
+
+                final long finalMateriaId = materiaIdSeleccionada;
+
+                // 5. Ejecutar la Petición de Red
                 NetworkHelper.getInstance().enviarAudio(rutaAudioTemporal, SERVER_URL, new NetworkHelper.TranscriptionCallback() {
                     @Override
                     public void onSuccess(String titulo, String resumenEstructurado) {
-                        // OBLIGATORIO: Volver al Hilo Principal (UI Thread) para actualizar la pantalla
                         runOnUiThread(() -> {
-                            Log.d("IA_APUNTES", "TÍTULO: " + titulo);
-                            Log.d("IA_APUNTES", "RESUMEN: " + resumenEstructurado);
+                            // A) Guardar en SQLite (Usamos los strings limpios directamente)
+                            long apunteId = dbHelper.insertarApunte(finalMateriaId, titulo, resumenEstructurado, rutaAudioTemporal);
 
-                            Toast.makeText(MainActivity.this, "¡Apunte generado exitosamente!\nTítulo: " + titulo, Toast.LENGTH_LONG).show();
+                            if (apunteId != -1) {
+                                // B) Actualizar la UI a estado de Éxito
+                                binding.pbProcessing.setVisibility(View.GONE);
+                                binding.ivSuccess.setVisibility(View.VISIBLE);
+                                binding.ivSuccess.setImageResource(android.R.drawable.presence_online); // Palomita
+                                binding.tvProcessingText.setText("¡Apunte Guardado!");
 
-                            // TODO: Guardar esto en SQLite junto con la ruta del audio y la materia_id
+                                // Opcional: Actualizar la lista de apuntes si ya tuvieras el RecyclerView listo
+                            } else {
+                                // Error en Base de Datos
+                                binding.pbProcessing.setVisibility(View.GONE);
+                                binding.ivSuccess.setVisibility(View.VISIBLE);
+                                binding.ivSuccess.setImageResource(android.R.drawable.ic_dialog_alert); // Alerta
+                                binding.tvProcessingText.setText("Error al guardar localmente");
+                            }
+
+                            // C) Ocultar el panel después de 2.5 segundos y RECARGAR LA LISTA
+                            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                binding.cardProcessingStatus.setVisibility(View.GONE);
+                                cargarMaterias(); // <--- ESTA ES LA LÍNEA CLAVE
+                            }, 2500);
                         });
                     }
 
                     @Override
                     public void onError(String mensaje) {
-                        // OBLIGATORIO: Volver al Hilo Principal
                         runOnUiThread(() -> {
-                            Log.e("IA_APUNTES", "Error: " + mensaje);
-                            Toast.makeText(MainActivity.this, "Fallo al procesar: " + mensaje, Toast.LENGTH_LONG).show();
+                            // Cambiar a estado de Error Visual
+                            binding.pbProcessing.setVisibility(View.GONE);
+                            binding.ivSuccess.setVisibility(View.VISIBLE);
+                            binding.ivSuccess.setImageResource(android.R.drawable.ic_dialog_alert); // Alerta
+                            binding.tvProcessingText.setText("Error: Servidor inalcanzable");
+
+                            // Ocultar panel después de 3 segundos
+                            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                binding.cardProcessingStatus.setVisibility(View.GONE);
+                            }, 3000);
                         });
                     }
-                }); // <-- ¡AQUÍ ESTABA EL ERROR DE LAS LLAVES!
+                });
             }
         });
 

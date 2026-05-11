@@ -6,7 +6,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    tools:context=".ui.MainActivity">
 
     <!-- Barra Superior -->
     <com.google.android.material.appbar.AppBarLayout
@@ -83,5 +83,48 @@
         android:contentDescription="Grabar nueva clase"
         android:src="@android:drawable/ic_btn_speak_now"
         app:tint="@android:color/white" />
+
+    <!-- Panel de Estado de Procesamiento (Oculto por defecto) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardProcessingStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="80dp"
+        android:visibility="gone"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp"
+        app:contentPadding="16dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ProgressBar
+                android:id="@+id/pbProcessing"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:indeterminate="true" />
+
+            <ImageView
+                android:id="@+id/ivSuccess"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/presence_online"
+                android:visibility="gone"
+                app:tint="?attr/colorPrimary" />
+
+            <TextView
+                android:id="@+id/tvProcessingText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Procesando apunte..."
+                android:textAppearance="?attr/textAppearanceBody1"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

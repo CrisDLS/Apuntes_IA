@@ -1,4 +1,4 @@
-package com.CrisDLS.apuntesia;
+package com.CrisDLS.apuntesia.ui;
 
 import android.content.Context;
 import android.content.SharedPreferences;

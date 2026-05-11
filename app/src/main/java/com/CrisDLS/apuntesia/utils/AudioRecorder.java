@@ -1,4 +1,4 @@
-package com.CrisDLS.apuntesia;
+package com.CrisDLS.apuntesia.utils;
 
 import android.content.Context;
 import android.media.MediaRecorder;

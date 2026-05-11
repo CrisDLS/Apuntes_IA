@@ -1,11 +1,14 @@
-package com.CrisDLS.apuntesia;
+package com.CrisDLS.apuntesia.adapters;
 
+import android.content.Context;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 
+import com.CrisDLS.apuntesia.ui.MateriaDetailActivity;
 import com.CrisDLS.apuntesia.databinding.ItemSubjectBinding;
 import com.CrisDLS.apuntesia.models.Materia;
 
@@ -38,9 +41,17 @@ public class MateriaAdapter extends RecyclerView.Adapter<MateriaAdapter.MateriaV
         holder.binding.tvSubjectName.setText(materia.getNombre());
 
         // Por ahora hardcodeamos los apuntes (lo conectaremos a SQLite en el futuro)
-        holder.binding.tvRecordingsCount.setText("0 apuntes guardados");
+        holder.binding.tvRecordingsCount.setText(materia.getCantidadApuntes() + " apuntes guardados");
 
-        // Aquí agregaremos el OnClickListener más adelante para ir al detalle
+        // --- NAVEGACIÓN AL DETALLE ---
+        holder.binding.getRoot().setOnClickListener(v -> {
+            Context context = v.getContext();
+            Intent intent = new Intent(context, MateriaDetailActivity.class);
+            // Pasamos el ID y el Nombre a la nueva pantalla
+            intent.putExtra("EXTRA_MATERIA_ID", materia.getId());
+            intent.putExtra("EXTRA_MATERIA_NOMBRE", materia.getNombre());
+            context.startActivity(intent);
+        });
     }
 
     @Override
