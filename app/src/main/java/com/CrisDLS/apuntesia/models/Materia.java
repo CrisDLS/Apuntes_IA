@@ -4,6 +4,7 @@ public class Materia {
     private long id;
     private String nombre;
     private String notionId;
+    private int cantidadApuntes;
 
     // Constructor vacío requerido por buenas prácticas
     public Materia() {}
@@ -30,5 +31,7 @@ public class Materia {
 
     public String getNotionId() { return notionId; }
     public void setNotionId(String notionId) { this.notionId = notionId; }
+    public int getCantidadApuntes() { return cantidadApuntes; }
+    public void setCantidadApuntes(int cantidadApuntes) { this.cantidadApuntes = cantidadApuntes; }
 }
 
